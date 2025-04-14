@@ -1,0 +1,20 @@
+#App name
+EJS Internet Cafe
+
+#Rate
+5 pesos = 25 mins
+
+#lose_win weight
+99.0, 1.0
+
+#prizes
+5 pesos, 10 pesos, 20 pesos, 50 pesos, Rivals Skin Case, 500 Robux
+
+#prize_weight
+80.0, 0.6, 0.5, 0.03, 0.02, 0.01
+
+#volume
+30
+
+#hide_on_startup
+False

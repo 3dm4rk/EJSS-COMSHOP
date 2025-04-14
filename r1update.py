@@ -21,7 +21,11 @@ PORT = 12345
 class ReceiverApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Welcome")
+        
+        # Load configuration from file
+        self.load_config()
+        
+        self.root.title(self.app_name)
         self.root.geometry("600x777")
         self.root.configure(bg="#f0f0f0")
         
@@ -36,6 +40,14 @@ class ReceiverApp:
         self.is_idle_detection_running = False
         self.idle_threshold = 30
         self.shutdown_delay = 30
+
+        # Volume control
+        self.volume_control = self.init_volume_control()
+        self.last_slider_update = None
+        self.ignore_volume_change = False
+        self.saved_volume = self.config.get('volume', 50)
+        self.hide_on_startup = self.config.get('hide_on_startup', False)
+        self.volume_slider = None  # Initialize as None, will be created in settings popup
 
         # Menu Bar
         self.menu_bar = tk.Menu(root)
@@ -53,7 +65,7 @@ class ReceiverApp:
         # Welcome Label
         self.welcome_label = tk.Label(
             self.main_frame,
-            text="Welcome to EJS Internet Cafe",
+            text=f"Welcome to {self.app_name}",
             font=("Arial", 20, "bold"),
             fg="#333333",
             bg="#f0f0f0"
@@ -63,7 +75,7 @@ class ReceiverApp:
         # Rate Label
         self.rate_label = tk.Label(
             self.main_frame,
-            text="Rate: 5 pesos = 25 mins",
+            text=f"Rate: {self.rate_text}",
             font=("Arial", 16),
             fg="#555555",
             bg="#f0f0f0"
@@ -178,9 +190,6 @@ class ReceiverApp:
         self.draw_history = []
         self.hall_of_fame = []
         
-        # Volume control
-        self.volume_control = self.init_volume_control()
-        
         # Idle detector - load saved settings
         self.load_settings()
         
@@ -189,9 +198,100 @@ class ReceiverApp:
         self.receiver_thread = threading.Thread(target=self.start_receiver, daemon=True)
         self.receiver_thread.start()
         
+        # Set initial volume to saved value
+        if self.saved_volume is not None and self.volume_control:
+            self.set_volume(self.saved_volume)
+        
+        # Start monitoring volume changes
+        self.monitor_volume_changes()
+        
         # Auto-start idle detection if enabled
         if self.is_idle_detection_running:
             self.start_idle_detection(initial_load=True)
+
+    def load_config(self):
+        """Load configuration from config.txt file"""
+        config_file = Path("config.txt")
+        self.config = {
+            'app_name': "EJS Internet Cafe",
+            'rate_text': "5 pesos = 25 mins",
+            'lose_weight': 99,
+            'win_weight': 0.01,
+            'prizes': ["5 pesos coin", "20 pesos coin", "50 pesos", "100 pesos", "500 Robux"],
+            'prize_weights': [90, 0.3, 0.2, 0.1],
+            'volume': 50,
+            'hide_on_startup': False
+        }
+        
+        try:
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    current_section = None
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            if line.startswith('#') and '#' in line:
+                                current_section = line[1:].strip().lower()
+                            continue
+                            
+                        if current_section == 'app name':
+                            self.config['app_name'] = line
+                        elif current_section == 'rate':
+                            self.config['rate_text'] = line
+                        elif current_section == 'lose_win weight':
+                            parts = line.split(',')
+                            if len(parts) == 2:
+                                self.config['lose_weight'] = float(parts[0].strip())
+                                self.config['win_weight'] = float(parts[1].strip())
+                        elif current_section == 'prizes':
+                            self.config['prizes'] = [p.strip() for p in line.split(',')]
+                        elif current_section == 'prize_weight':
+                            weights = []
+                            for weight in line.split(','):
+                                weight = weight.strip().replace('%', '')
+                                try:
+                                    weights.append(float(weight))
+                                except ValueError:
+                                    weights.append(0.0)
+                            self.config['prize_weights'] = weights
+                        elif current_section == 'volume':
+                            try:
+                                self.config['volume'] = int(line.strip())
+                            except ValueError:
+                                pass
+                        elif current_section == 'hide_on_startup':
+                            self.config['hide_on_startup'] = line.strip().lower() in ('true', 'yes', '1')
+        except Exception as e:
+            print(f"Error loading config: {e}")
+        
+        # Assign to instance variables
+        self.app_name = self.config['app_name']
+        self.rate_text = self.config['rate_text']
+        self.lose_weight = self.config['lose_weight']
+        self.win_weight = self.config['win_weight']
+        self.prizes = self.config['prizes']
+        self.prize_weights = self.config['prize_weights']
+
+    def save_config(self):
+        """Save configuration to config.txt file"""
+        try:
+            with open("config.txt", 'w') as f:
+                f.write("#App name\n")
+                f.write(f"{self.app_name}\n\n")
+                f.write("#Rate\n")
+                f.write(f"{self.rate_text}\n\n")
+                f.write("#lose_win weight\n")
+                f.write(f"{self.lose_weight}, {self.win_weight}\n\n")
+                f.write("#prizes\n")
+                f.write(", ".join(self.prizes) + "\n\n")
+                f.write("#prize_weight\n")
+                f.write(", ".join(map(str, self.prize_weights)) + "\n\n")
+                f.write("#volume\n")
+                f.write(f"{self.saved_volume}\n\n")
+                f.write("#hide_on_startup\n")
+                f.write(f"{self.hide_on_startup}\n")
+        except Exception as e:
+            self.log_message(f"Error saving config: {e}")
 
     def load_settings(self):
         """Load saved settings from file"""
@@ -204,13 +304,11 @@ class ReceiverApp:
                     self.shutdown_delay = settings.get('shutdown_delay', 30)
                     self.is_idle_detection_running = settings.get('auto_start', False)
             else:
-                # Default values
                 self.idle_threshold = 30
                 self.shutdown_delay = 30
                 self.is_idle_detection_running = False
         except Exception as e:
             self.log_message(f"Error loading settings: {e}")
-            # Fall back to defaults
             self.idle_threshold = 30
             self.shutdown_delay = 30
             self.is_idle_detection_running = False
@@ -251,22 +349,82 @@ class ReceiverApp:
         volume_frame = ttk.Frame(notebook, padding=10)
         notebook.add(volume_frame, text="Volume Control")
 
-        ttk.Label(volume_frame, text="System Volume:").pack(pady=5)
-        self.volume_slider = ttk.Scale(volume_frame, from_=0, to=100, command=self.on_volume_slider_move)
-        self.volume_slider.pack(fill=tk.X, pady=5)
-        self.update_volume_slider()
+        # Current volume display
+        self.volume_label_settings = ttk.Label(
+            volume_frame,
+            text="Current Volume: Checking...",
+            font=('Arial', 10)
+        )
+        self.volume_label_settings.pack(pady=5)
 
+        # Volume slider
+        self.volume_slider = ttk.Scale(
+            volume_frame,
+            from_=0,
+            to=100,
+            command=self.on_volume_slider_move
+        )
+        self.volume_slider.pack(fill=tk.X, pady=10)
+        
+        # Update slider to current volume
+        if self.volume_control:
+            try:
+                current_vol = self.volume_control.GetMasterVolumeLevelScalar()
+                self.volume_slider.set(current_vol * 100)
+                self.volume_label_settings.config(text=f"Current Volume: {int(current_vol * 100)}%")
+            except Exception as e:
+                self.log_message(f"Error getting current volume: {e}")
+                self.volume_label_settings.config(text="Current Volume: Unknown")
+
+        # Quick set buttons
         quick_buttons_frame = ttk.Frame(volume_frame)
         quick_buttons_frame.pack(pady=10)
+        
         for percent in [15, 30, 50, 75]:
-            ttk.Button(quick_buttons_frame, text=f"{percent}%", command=lambda p=percent: self.set_volume(p), width=5).pack(side=tk.LEFT, padx=5)
+            ttk.Button(
+                quick_buttons_frame,
+                text=f"{percent}%",
+                command=lambda p=percent: self.set_volume(p),
+                width=5
+            ).pack(side=tk.LEFT, padx=5)
 
+        # Custom volume entry
         custom_frame = ttk.Frame(volume_frame)
         custom_frame.pack(pady=10)
+        
         ttk.Label(custom_frame, text="Custom %:").pack(side=tk.LEFT)
-        self.custom_volume_entry = ttk.Entry(custom_frame, width=5)
+        
+        self.custom_volume_entry = ttk.Entry(
+            custom_frame,
+            width=5,
+            validate='key',
+            validatecommand=(self.root.register(self.validate_percent), '%P')
+        )
         self.custom_volume_entry.pack(side=tk.LEFT, padx=5)
-        ttk.Button(custom_frame, text="Set", command=self.set_custom_volume, width=5).pack(side=tk.LEFT)
+        
+        ttk.Button(
+            custom_frame,
+            text="Set",
+            command=self.set_custom_volume,
+            width=5
+        ).pack(side=tk.LEFT)
+
+        # Save current volume button
+        ttk.Button(
+            volume_frame,
+            text="Save Current Volume",
+            command=self.save_current_volume,
+            width=20
+        ).pack(pady=10)
+
+        # Hide on startup checkbox
+        self.hide_var = tk.BooleanVar(value=self.hide_on_startup)
+        ttk.Checkbutton(
+            volume_frame,
+            text="Hide program when run",
+            variable=self.hide_var,
+            command=self.toggle_hide_setting
+        ).pack(pady=5)
 
         # Idle Detector Tab
         idle_frame = ttk.Frame(notebook, padding=10)
@@ -300,7 +458,7 @@ class ReceiverApp:
         self.stop_idle_button = ttk.Button(button_frame, text="Stop Detection", command=self.stop_idle_detection, state=tk.DISABLED)
         self.stop_idle_button.pack(side=tk.LEFT, padx=5)
 
-        # Update button states based on current detection status
+        # Update button states
         if self.is_idle_detection_running:
             self.start_idle_button.config(state=tk.DISABLED)
             self.stop_idle_button.config(state=tk.NORMAL)
@@ -315,12 +473,94 @@ class ReceiverApp:
 
         ttk.Button(settings_popup, text="Close", command=settings_popup.destroy).pack(pady=10)
 
+    def validate_percent(self, text):
+        """Validate percentage input"""
+        if text == "":
+            return True
+        try:
+            return 0 <= int(text) <= 100
+        except ValueError:
+            return False
+
+    def on_volume_slider_move(self, value):
+        """Handle slider movement with debounce"""
+        if self.last_slider_update:
+            self.root.after_cancel(self.last_slider_update)
+        
+        percent = float(value)
+        self.last_slider_update = self.root.after(
+            100, 
+            lambda: self.set_volume(percent, update_slider=False)
+        )
+
+    def set_volume(self, percent, update_slider=True):
+        """Set system volume with error handling"""
+        if not self.volume_control:
+            return
+            
+        try:
+            self.ignore_volume_change = True
+            percent = max(0, min(100, float(percent)))
+            self.volume_control.SetMasterVolumeLevelScalar(percent/100, None)
+            
+            if update_slider and hasattr(self, 'volume_slider') and self.volume_slider:
+                self.volume_slider.set(percent)
+            if hasattr(self, 'volume_label_settings') and self.volume_label_settings:
+                self.volume_label_settings.config(text=f"Current Volume: {int(percent)}%")
+            self.ignore_volume_change = False
+        except Exception as e:
+            self.ignore_volume_change = False
+            self.log_message(f"Volume control failed: {e}")
+
+    def set_custom_volume(self):
+        """Set volume from custom entry"""
+        try:
+            percent = int(self.custom_volume_entry.get())
+            self.set_volume(percent)
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a number 0-100")
+
+    def save_current_volume(self):
+        """Save the current volume as the preferred setting"""
+        if not self.volume_control:
+            return
+            
+        try:
+            current_vol = self.volume_control.GetMasterVolumeLevelScalar()
+            percent = int(current_vol * 100)
+            self.saved_volume = percent
+            self.save_config()
+            messagebox.showinfo("Saved", f"Volume setting {percent}% has been saved.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save volume:\n{str(e)}")
+
+    def toggle_hide_setting(self):
+        """Toggle the hide on startup setting"""
+        self.hide_on_startup = self.hide_var.get()
+        self.save_config()
+
+    def monitor_volume_changes(self):
+        """Check for volume changes and revert to saved setting if changed externally"""
+        if not self.volume_control:
+            return
+            
+        try:
+            current_vol = self.volume_control.GetMasterVolumeLevelScalar()
+            current_percent = int(current_vol * 100)
+            
+            if not self.ignore_volume_change and self.saved_volume is not None:
+                if current_percent != self.saved_volume:
+                    self.set_volume(self.saved_volume)
+        except:
+            pass
+            
+        self.root.after(1000, self.monitor_volume_changes)
+
     def toggle_auto_start(self):
         """Toggle auto-start setting and save it"""
         self.is_idle_detection_running = self.auto_start_var.get()
         self.save_settings()
         
-        # Update UI to reflect current state
         if hasattr(self, 'idle_status_label'):
             self.idle_status_label.config(text="Idle detection is currently " + 
                                         ("active." if self.is_idle_detection_running else "inactive."))
@@ -332,46 +572,6 @@ class ReceiverApp:
             else:
                 self.start_idle_button.config(state=tk.NORMAL)
                 self.stop_idle_button.config(state=tk.DISABLED)
-
-    def on_volume_slider_move(self, value):
-        if self.volume_control:
-            try:
-                volume_level = float(value) / 100
-                self.volume_control.SetMasterVolumeLevelScalar(volume_level, None)
-            except Exception as e:
-                self.log_message(f"Error setting volume: {e}")
-
-    def update_volume_slider(self):
-        if self.volume_control:
-            try:
-                current_vol = self.volume_control.GetMasterVolumeLevelScalar()
-                self.volume_slider.set(current_vol * 100)
-            except Exception as e:
-                self.log_message(f"Error getting current volume: {e}")
-
-    def set_volume(self, percent):
-        """Set the system volume and update the UI if available"""
-        if self.volume_control:
-            try:
-                volume_level = float(percent) / 100
-                self.volume_control.SetMasterVolumeLevelScalar(volume_level, None)
-                self.log_message(f"Volume set to {percent}%")
-                
-                # Update the slider if it exists (in a thread-safe way)
-                if hasattr(self, 'volume_slider'):
-                    self.root.after(0, lambda: self.volume_slider.set(percent))
-            except Exception as e:
-                self.log_message(f"Error setting volume: {e}")
-
-    def set_custom_volume(self):
-        try:
-            percent = int(self.custom_volume_entry.get())
-            if 0 <= percent <= 100:
-                self.set_volume(percent)
-            else:
-                messagebox.showerror("Error", "Volume must be between 0-100")
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid number")
 
     def get_idle_time(self):
         class LASTINPUTINFO(ctypes.Structure):
@@ -390,14 +590,14 @@ class ReceiverApp:
             
             if idle_time >= self.idle_threshold and not self.warning_shown:
                 self.root.after(0, self.show_idle_warning)
-            elif idle_time < 1 and self.warning_shown:  # User became active
+            elif idle_time < 1 and self.warning_shown:
                 self.root.after(0, self.dismiss_idle_warning)
                 
             time.sleep(1)
 
     def show_idle_warning(self):
         """Show the idle warning popup"""
-        if self.warning_shown:  # Don't show multiple warnings
+        if self.warning_shown:
             return
             
         self.warning_shown = True
@@ -424,10 +624,8 @@ class ReceiverApp:
         )
         self.countdown_label.pack(pady=5)
         
-        # Start the countdown updates
         self.update_countdown(self.warning_popup, self.countdown_label)
         
-        # Schedule shutdown if no response
         self.shutdown_timer = self.warning_popup.after(
             self.shutdown_delay * 1000,
             self.shutdown_computer
@@ -441,11 +639,9 @@ class ReceiverApp:
         self.warning_shown = False
         self.last_active_time = time.time()
         
-        # Cancel any pending shutdown
         if hasattr(self, 'shutdown_timer'):
             self.warning_popup.after_cancel(self.shutdown_timer)
         
-        # Close the warning window if it exists
         if hasattr(self, 'warning_popup') and self.warning_popup.winfo_exists():
             self.warning_popup.destroy()
         
@@ -457,11 +653,6 @@ class ReceiverApp:
             label.config(text=f"Time remaining: {self.countdown_remaining} seconds")
             self.countdown_remaining -= 1
             window.after(1000, self.update_countdown, window, label)
-
-    def on_warning_response(self, window):
-        self.warning_shown = False
-        self.last_active_time = time.time()
-        window.destroy()
 
     def start_idle_detection(self, initial_load=False):
         try:
@@ -486,7 +677,6 @@ class ReceiverApp:
             
             self.log_message("Idle detection started")
             
-            # Save settings whenever they change
             if not initial_load:
                 self.save_settings()
                 
@@ -511,7 +701,7 @@ class ReceiverApp:
         current_time = time.monotonic()
         elapsed_time = current_time - self.last_draw_time
 
-        if elapsed_time >= 1500:  # 25 minutes
+        if elapsed_time >= 1500:
             self.draw_attempts += 1
             self.last_draw_time = current_time
             self.attempts_label.config(text=f"Attempts available: {self.draw_attempts}")
@@ -530,18 +720,15 @@ class ReceiverApp:
 
             result = random.choices(
                 ["Better luck next time", "It's your lucky day, you won!"],
-                weights=[99, 0.01]
+                weights=[self.lose_weight, self.win_weight]
             )[0]
 
             if result == "It's your lucky day, you won!":
-                prizes = ["5 pesos coin", "20 pesos coin", "50 pesos", "100 pesos", "500 Robux"]
-                prize_chances = [90, 0.3, 0.2, 0.1]
-                prize = random.choices(prizes, weights=prize_chances)[0]
+                prize = random.choices(self.prizes, weights=self.prize_weights)[0]
                 result_message = f"{result} {prize}"
                 self.result_label.config(text=result_message, fg="green", font=("Arial", 18, "bold"))
                 self.play_sound("winner.wav")
                 
-                # Add to both histories
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
                 self.draw_history.append((timestamp, result_message))
                 self.hall_of_fame.append((timestamp, prize))
@@ -567,15 +754,14 @@ class ReceiverApp:
         prizes_frame = tk.Frame(prizes_popup, bg="#f0f0f0")
         prizes_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        prizes = [
-            ("5 pesos coin", "30% chance"),
-            ("20 pesos coin", "10% chance"),
-            ("50 pesos", "5% chance"),
-            ("Rivals skin bundle", "2% chance"),
-            ("500 Robux", "1% chance")
-        ]
+        total_weight = sum(self.prize_weights)
+        
+        prize_list = []
+        for prize, weight in zip(self.prizes, self.prize_weights):
+            percentage = (weight / total_weight) * 100
+            prize_list.append((prize, f"{percentage:.2f}% chance"))
 
-        for prize, chance in prizes:
+        for prize, chance in prize_list:
             tk.Label(prizes_frame, text=f"{prize}: {chance}", font=("Arial", 14), bg="#f0f0f0").pack(pady=5)
 
         tk.Button(prizes_popup, text="OK", command=prizes_popup.destroy, font=("Arial", 12), bg="#4CAF50", fg="white").pack(pady=(20, 10))
@@ -602,15 +788,12 @@ class ReceiverApp:
         tk.Button(history_popup, text="OK", command=history_popup.destroy, font=("Arial", 12), bg="#4CAF50", fg="white").pack(pady=(20, 10))
 
     def show_hall_of_fame(self):
-        """Display the Hall of Fame content from Pastebin URL in the application"""
         try:
-            # Create the popup window
             hof_popup = tk.Toplevel(self.root)
             hof_popup.title("Champions")
             hof_popup.geometry("593x598")
             hof_popup.configure(bg="#f0f0f0")
             
-            # Add title label
             title_label = tk.Label(
                 hof_popup,
                 text="Champions Hall of Fame",
@@ -620,11 +803,9 @@ class ReceiverApp:
             )
             title_label.pack(pady=(10, 5))
 
-            # Create a frame for the content
             content_frame = tk.Frame(hof_popup, bg="#f0f0f0")
             content_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-            # Create a loading message
             loading_label = tk.Label(
                 content_frame,
                 text="Loading champions...",
@@ -633,7 +814,6 @@ class ReceiverApp:
             )
             loading_label.pack(pady=50)
 
-            # Create the text widget
             text_widget = scrolledtext.ScrolledText(
                 content_frame,
                 wrap=tk.WORD,
@@ -650,7 +830,7 @@ class ReceiverApp:
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                     }
                     response = requests.get("https://pastebin.com/raw/xTnpAE4n", headers=headers)
-                    response.raise_for_status()  # Raises exception for 4XX/5XX errors
+                    response.raise_for_status()
                     content = response.text
                     
                     hof_popup.after(0, lambda: self.display_hof_content(
@@ -666,7 +846,6 @@ class ReceiverApp:
 
             threading.Thread(target=fetch_url_content, daemon=True).start()
 
-            # Add close button
             close_button = tk.Button(
                 hof_popup,
                 text="Close",
@@ -745,10 +924,9 @@ class ReceiverApp:
                 self.log_message(f"Received message from {client_address}: {data}")
                 if data.strip() == "SHUTDOWN":
                     self.shutdown_computer()
-                elif data.startswith("VOLUME:"):  # Handle volume commands
+                elif data.startswith("VOLUME:"):
                     try:
                         volume_percent = int(data.split(":")[1])
-                        # Use after() to handle volume setting in the main thread
                         self.root.after(0, lambda: self.set_volume(volume_percent))
                     except (ValueError, IndexError):
                         self.log_message("Invalid volume command format")

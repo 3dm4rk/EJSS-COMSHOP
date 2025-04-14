@@ -83,8 +83,8 @@ Prizes not showing	Verify config.txt formatting
 📜 License
 MIT Licensed - Free to use and modify
 
-✉️ Contact: your@email.com
-🔗 Source: github.com/yourusername/cafe-manager
+✉️ Contact: edmarksumampen@gmail.com
+🔗 Source: github.com/3dm4rk/EJSS-COMSHOP
 
 
 

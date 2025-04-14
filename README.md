@@ -15,6 +15,15 @@ Windows OS (for the receiver program)
 
 Installation Steps
 
+#### Enable 2 step verification
+```bash
+login to google
+
+go to Manage you account to google
+
+go to security and enable it
+```
+
 ```
 
 #### 1. Clone the Repository

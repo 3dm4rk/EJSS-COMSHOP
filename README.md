@@ -22,11 +22,11 @@ config.txt (configuration)
 Run:
 
 bash
-Copy
+
 python r1update.py
 ⚙️ Configuration (config.txt)
 ini
-Copy
+
 # App name and rate
 My Cool Cafe
 5 pesos = 30 mins
@@ -86,7 +86,7 @@ MIT Licensed - Free to use and modify
 ✉️ Contact: your@email.com
 🔗 Source: github.com/yourusername/cafe-manager
 
-Copy
+
 
 **To use**:
 1. Copy this entire text

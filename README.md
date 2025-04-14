@@ -15,21 +15,15 @@ Windows OS (for the receiver program)
 
 Installation Steps
 
-#### Enable 2 step verification
-```bash
-login to google
 
-go to Manage you account to google
-
-go to security and enable it
-```
 
 ```
 
 #### 1. Clone the Repository
 ```bash
 git clone https://github.com/3dm](https://github.com/3dm4rk/EJSS-COMSHOP
-cd network-volume-control```
+cd network-volume-control
+```
 
 3. Set Up Virtual Environment (Recommended)
 bash

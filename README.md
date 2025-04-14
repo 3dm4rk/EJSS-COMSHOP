@@ -13,3 +13,11 @@ A Windows-based management system for internet cafes featuring prize draws, idle
 2. Install dependencies:
 ```bash
 pip install tkinter pycaw simpleaudio requests
+
+Download Files:
+
+3. r1update.py (main program)
+
+4. config.txt (configuration)
+
+Run:

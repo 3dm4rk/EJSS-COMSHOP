@@ -1,4 +1,4 @@
-#with shutdown and volume control features
+#with shutdown, volume control, and cheat warning features
 
 import socket
 import ipaddress
@@ -111,6 +111,13 @@ def set_unit_volume(unit_ip, volume_percent):
     """
     send_message(f"VOLUME:{volume_percent}", unit_ip)
 
+def send_cheat_warning(unit_ip):
+    """
+    Send a cheat warning to the specified unit IP address.
+    This will trigger the full-screen warning popup on the target machine.
+    """
+    send_message("CHEAT_WARNING", unit_ip)
+
 def custom_ip_submenu(custom_ip):
     """
     Display a sub-menu for a custom IP with options to send a message, shutdown, adjust volume, or go back.
@@ -121,8 +128,9 @@ def custom_ip_submenu(custom_ip):
         print("[1] Send Message")
         print("[2] Shutdown")
         print("[3] Adjust Speaker Volume")
-        print("[4] Back to Main Menu")
-        sub_choice = input("Enter your choice (1-4): ")
+        print("[4] Send Fullscreen Warning")
+        print("[5] Back to Main Menu")
+        sub_choice = input("Enter your choice (1-5): ")
 
         if sub_choice == "1":
             message = input("Enter the message to send: ")
@@ -140,6 +148,9 @@ def custom_ip_submenu(custom_ip):
             except ValueError:
                 print("Please enter a valid number")
         elif sub_choice == "4":
+            send_cheat_warning(custom_ip)
+            print(f"Cheat warning sent to {custom_ip}")
+        elif sub_choice == "5":
             break  # Go back to the main menu
         else:
             print("Invalid choice. Please select a valid option.")
@@ -156,8 +167,9 @@ def unit_submenu(unit_ip):
         print("[1] Send Message")
         print("[2] Shutdown")
         print("[3] Adjust Speaker Volume")
-        print("[4] Back to Main Menu")
-        sub_choice = input("Enter your choice (1-4): ")
+        print("[4] Send Fullscreen Warning")
+        print("[5] Back to Main Menu")
+        sub_choice = input("Enter your choice (1-5): ")
 
         if sub_choice == "1":
             message = input("Enter the message to send: ")
@@ -175,11 +187,21 @@ def unit_submenu(unit_ip):
             except ValueError:
                 print("Please enter a valid number")
         elif sub_choice == "4":
+            send_cheat_warning(unit_ip)
+            print(f"Cheat warning sent to {unit_ip}")
+        elif sub_choice == "5":
             break  # Go back to the main menu
         else:
             print("Invalid choice. Please select a valid option.")
 
         input("Press Enter to continue...")
+
+def action_submenu(action_function, *args):
+    """
+    Display a sub-menu for actions that require a message input.
+    """
+    message = input("Enter the message to send: ")
+    action_function(message, *args)
 
 def display_menu():
     """
@@ -212,13 +234,15 @@ def main():
             unit_ip = UNITS[choice]
             unit_submenu(unit_ip)
         elif choice == "5":
-            action_submenu(send_to_all_units)
+            message = input("Enter the message to send to all units: ")
+            send_to_all_units(message)
         elif choice == "6":
             custom_ip = input("Enter the custom IP address: ")
             custom_ip_submenu(custom_ip)
         elif choice == "7":
             network_range = "192.168.1.0/24"
-            action_submenu(auto_send, network_range)
+            message = input("Enter the message to send: ")
+            auto_send(message, network_range)
         elif choice == "8":
             check_device_status()
         else:

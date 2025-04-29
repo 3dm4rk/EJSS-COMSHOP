@@ -2,105 +2,47 @@
 best tool for computer shop owners
 
 
-# 🕹️ Internet Cafe Manager
+# 🎮 EJS-COMSHOP v1.3 - Internet Cafe Management System
 
-**All-in-one management tool for internet cafes with prize draws, idle detection, and remote control**
+![EJS-COMSHOP Screenshot](https://via.placeholder.com/800x500/2d3748/ffffff?text=EJS-COMSHOP+v1.3) 
+*(Replace with actual screenshot)*
 
-![App Interface Preview](screenshot.png)
+## 🌟 Features
 
-## 🚀 Quick Start
+### 🎰 Lottery System
+- **Time-based attempts**: 1 draw every 25 minutes
+- **Progressive rewards**:
+  - 5 pesos coin (70% chance)
+  - 20 pesos coin (50% chance) 
+  - 50 pesos (30% chance)
+  - Rivals skin bundle (10% chance)
+  - 500 Robux (1% chance)
 
-1. **Install Requirements**:
-   ```bash
-   pip install tkinter pycaw simpleaudio requests
-Download Files:
+### ⚡ Admin Control Panel
+- **Full-screen notifications** with countdown timer
+- **Remote commands**:
+  - Send messages to all units
+  - Force shutdown computers
+  - Adjust speaker volume
+  - Trigger cheat warnings
 
-r1update.py (main program)
+### 🛡️ Security Features
+- **Anti-cheat system** with full-screen warning popup
+- **CCTV monitoring alerts**
+- **Activity logging** (hidden but accessible)
 
-config.txt (configuration)
+### 🏆 Community Features
+- Hall of Fame integration (Pastebin API)
+- Draw history tracking
 
-Run:
+## 🚀 Installation
 
-bash
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/ejs-comshop.git
 
-python r1update.py
-⚙️ Configuration (config.txt)
-ini
+# Install dependencies
+pip install -r requirements.txt
 
-# App name and rate
-My Cool Cafe
-5 pesos = 30 mins
-
-# Win/lose chances
-99, 1
-
-# Prizes and weights
-5 pesos, 10 pesos, 50 pesos
-80, 15, 5
-
-# Default volume (0-100)
-50
-
-# Start minimized? (True/False)
-False
-🔥 Key Features
-🎰 Prize Draw System
-Customizable prizes and probabilities
-
-Attempts with cooldown timer
-
-Win history tracking
-
-⏳ Idle Detection
-Warns inactive users
-
-Auto-shutdown after delay
-
-Configurable thresholds
-
-🔊 Volume Control
-System-wide volume adjustment
-
-Quick presets (15%, 30%, 50%, 75%)
-
-Save preferred volume level
-
-🌐 Remote Commands
-Send to port 12345:
-
-SHUTDOWN - Powers off PC
-
-VOLUME:65 - Sets volume to 65%
-
-Any message - Displays popup alert
-
-🛠️ Troubleshooting
-Issue	Fix
-Volume control fails	Run as Administrator
-Idle detection not working	Check power settings
-Network commands blocked	Allow port 12345 in firewall
-Prizes not showing	Verify config.txt formatting
-📜 License
-MIT Licensed - Free to use and modify
-
-✉️ Contact: edmarksumampen@gmail.com
-🔗 Source: github.com/3dm4rk/EJSS-COMSHOP
-
-
-
-**To use**:
-1. Copy this entire text
-2. Create a new `README.md` file in your project
-3. Paste the contents
-4. Replace placeholder values (email, GitHub URL)
-5. Add a real screenshot (rename your image to `screenshot.png`)
-
-This version:
-- Is completely self-contained in one copy-pasteable block
-- Uses clear emoji headers
-- Has minimal but essential information
-- Includes formatted tables and code blocks
-- Provides quick setup instructions
-- Maintains all critical functionality details
-
-The formatting will render perfectly on GitHub with proper spacing and section organization.
+# Run the application
+python EJS-COMSHOP.py

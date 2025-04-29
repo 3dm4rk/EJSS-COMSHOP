@@ -4,7 +4,7 @@ best tool for computer shop owners
 
 # 🎮 EJS-COMSHOP v1.3 - Internet Cafe Management System
 
-![EJS-COMSHOP Screenshot](https://via.placeholder.com/800x500/2d3748/ffffff?text=EJS-COMSHOP+v1.3) 
+![EJS-COMSHOP Screenshot](ss.png) 
 *(Replace with actual screenshot)*
 
 ## 🌟 Features

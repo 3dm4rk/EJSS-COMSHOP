@@ -62,11 +62,71 @@ class CheatWarningPopup:
         else:
             self.close_button.config(state=tk.NORMAL, text="I UNDERSTAND")
 
+class AdminMessagePopup:
+    def __init__(self, parent, message):
+        self.popup = tk.Toplevel(parent)
+        self.popup.attributes('-fullscreen', True)
+        self.popup.attributes('-topmost', True)
+        
+        # Disable window controls
+        self.popup.overrideredirect(True)
+        
+        # Message frame with red background
+        message_frame = tk.Frame(self.popup, bg='red')
+        message_frame.pack(expand=True, fill='both')
+        
+        # Add an exclamation icon if available
+        try:
+            icon = tk.PhotoImage(file="exclamation.png")
+            icon_label = tk.Label(message_frame, image=icon, bg='red')
+            icon_label.image = icon
+            icon_label.pack(pady=20)
+        except Exception:
+            pass
+        
+        # Add the message text
+        tk.Label(
+            message_frame, 
+            text="MESSAGE FROM ADMIN", 
+            font=('Arial', 36, 'bold'), 
+            fg='white', 
+            bg='red'
+        ).pack(expand=True)
+        
+        tk.Label(
+            message_frame, 
+            text=message, 
+            font=('Arial', 24), 
+            fg='white', 
+            bg='red',
+            wraplength=1000
+        ).pack(expand=True, padx=50)
+        
+        # Close button (only works after delay)
+        self.close_button = tk.Button(
+            message_frame, 
+            text="I UNDERSTAND (10)", 
+            font=('Arial', 18), 
+            state=tk.DISABLED,
+            command=self.popup.destroy
+        )
+        self.close_button.pack(pady=50)
+        
+        # Start countdown
+        self.countdown(10)
+    
+    def countdown(self, remaining):
+        if remaining > 0:
+            self.close_button.config(text=f"I UNDERSTAND ({remaining})")
+            self.popup.after(1000, self.countdown, remaining-1)
+        else:
+            self.close_button.config(state=tk.NORMAL, text="I UNDERSTAND")
+
 class ReceiverApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("EJS Comshop v1.2")
-        self.root.geometry("600x650")  # Increased height to accommodate new button
+        self.root.title("EJS Comshop v1.3")
+        self.root.geometry("600x550")
         self.root.protocol("WM_DELETE_WINDOW", lambda: None)
         self.root.resizable(False, False)
 
@@ -182,18 +242,11 @@ class ReceiverApp:
             relief="flat",
             command=self.show_draw_history
         )
-        self.history_button.pack(pady=(0, 10))
+        self.history_button.pack(pady=(0, 20))
 
+        # Hidden log storage
+        self.log_messages = []
         
-
-        # Log frame
-        self.log_frame = tk.Frame(root, bg="#ffffff")
-        self.log_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=(0, 10))
-
-        # Log text
-        self.log_text = scrolledtext.ScrolledText(self.log_frame, wrap=tk.WORD, state='disabled', height=10)
-        self.log_text.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
-
         # Initialize variables
         self.draw_attempts = 1
         self.last_draw_time = time.monotonic()
@@ -204,7 +257,41 @@ class ReceiverApp:
         self.receiver_thread = threading.Thread(target=self.start_receiver, daemon=True)
         self.receiver_thread.start()
 
-    
+        # Bind Ctrl+Shift+L to show logs
+        self.root.bind('<Control-Shift-L>', self.show_hidden_logs)
+
+    def show_hidden_logs(self, event=None):
+        """Show hidden logs in a popup window"""
+        if not self.log_messages:
+            messagebox.showinfo("Logs", "No log messages available")
+            return
+            
+        log_popup = tk.Toplevel(self.root)
+        log_popup.title("Debug Logs")
+        log_popup.geometry("600x400")
+        
+        log_text = scrolledtext.ScrolledText(log_popup, wrap=tk.WORD)
+        log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        for message in self.log_messages:
+            log_text.insert(tk.END, message + "\n")
+        
+        log_text.config(state='disabled')
+        
+        close_button = tk.Button(
+            log_popup,
+            text="Close",
+            command=log_popup.destroy
+        )
+        close_button.pack(pady=10)
+
+    def log_message(self, message):
+        """Log a message to hidden storage"""
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        full_message = f"[{timestamp}] {message}"
+        self.log_messages.append(full_message)
+        if len(self.log_messages) > 100:
+            self.log_messages.pop(0)
 
     def on_draw_click(self):
         """Handle the draw button click event."""
@@ -214,7 +301,7 @@ class ReceiverApp:
 
             result = random.choices(
                 ["Better luck next time", "It's your lucky day, you won!"],
-                weights=[99, 0.2]
+                weights=[99, 0.3]
             )[0]
 
             if result == "It's your lucky day, you won!":
@@ -326,10 +413,11 @@ class ReceiverApp:
 
         prizes = [
             ("5 pesos coin", "70% chance"),
-            ("20 pesos coin", "50% chance"),
-            ("50 pesos", "30% chance"),
-            ("Rivals skin bundle", "10% chance"),
-            ("500 Robux", "1% chance")
+            ("20 pesos coin", "20% chance"),
+            ("50 pesos", "10% chance"),
+            ("Rivals skin bundle", "5% chance"),
+            ("500 Robux", "2% chance"),
+            ("500 pesos", "0.1% chance")
         ]
 
         for prize, chance in prizes:
@@ -406,13 +494,6 @@ class ReceiverApp:
         y = (history_popup.winfo_screenheight() // 2) - (height // 2)
         history_popup.geometry(f"+{x}+{y}")
 
-    def log_message(self, message):
-        """Log a message to the GUI."""
-        self.log_text.config(state='normal')
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.config(state='disabled')
-        self.log_text.see(tk.END)
-
     def play_sound(self, file_path):
         """Play a sound using the simpleaudio library."""
         try:
@@ -423,42 +504,8 @@ class ReceiverApp:
             self.log_message(f"Error playing sound: {e}")
 
     def show_popup(self, message):
-        """Display a pop-up message using tkinter with an exclamation icon, fixed size, and custom title."""
-        self.root.after(0, self._show_popup_in_main_thread, message)
-
-    def _show_popup_in_main_thread(self, message):
-        """Internal method to show the popup in the main thread."""
-        try:
-            self.play_sound("alert.wav")
-        except Exception as e:
-            self.log_message(f"Error playing sound: {e}")
-
-        popup = tk.Toplevel(self.root)
-        popup.attributes("-topmost", True)
-        popup.title("Message From Admin")
-        popup.geometry("482x574")
-        popup.protocol("WM_DELETE_WINDOW", lambda: None)
-
-        try:
-            icon = tk.PhotoImage(file="exclamation.png")
-            icon_label = tk.Label(popup, image=icon)
-            icon_label.image = icon
-            icon_label.pack(pady=10)
-        except Exception as e:
-            self.log_message(f"Error loading icon: {e}")
-
-        label = tk.Label(popup, text=message, font=("Arial", 14), wraplength=500)
-        label.pack(pady=20)
-
-        ok_button = tk.Button(popup, text="OK", command=popup.destroy, font=("Arial", 12), width=10)
-        ok_button.pack(pady=10)
-
-        popup.update_idletasks()
-        width = popup.winfo_width()
-        height = popup.winfo_height()
-        x = (popup.winfo_screenwidth() // 2) - (width // 2)
-        y = (popup.winfo_screenheight() // 2) - (height // 2)
-        popup.geometry(f"+{x}+{y}")
+        """Display a fullscreen admin message popup."""
+        self.root.after(0, AdminMessagePopup, self.root, message)
 
     def shutdown_computer(self):
         """Shutdown the computer."""
@@ -490,7 +537,7 @@ class ReceiverApp:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.bind((HOST, PORT))
             server_socket.listen(5)
-            self.log_message(f"{HOST}:{PORT}...")
+            self.log_message(f"Receiver started on {HOST}:{PORT}")
 
             try:
                 while True:

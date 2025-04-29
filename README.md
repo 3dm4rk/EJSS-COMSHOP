@@ -24,7 +24,7 @@ best tool for computer shop owners
   - Send messages to all units
   - Force shutdown computers
   - Adjust speaker volume
-  - Trigger cheat warnings
+  - Trigger message warnings
 
 ### 🛡️ Security Features
 - **Anti-cheat system** with full-screen warning popup
@@ -39,7 +39,7 @@ best tool for computer shop owners
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ejs-comshop.git
+https://github.com/3dm4rk/EJSS-COMSHOP.git
 
 # Install dependencies
 pip install -r requirements.txt

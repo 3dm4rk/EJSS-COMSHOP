@@ -27,7 +27,7 @@ best tool for computer shop owners
   - Trigger message warnings
 
 ### 🛡️ Security Features
-- **Anti-cheat system** with full-screen warning popup
+- **Warning alert message system** with full-screen warning popup
 - **CCTV monitoring alerts**
 - **Activity logging** (hidden but accessible)
 
